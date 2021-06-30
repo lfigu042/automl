@@ -767,6 +767,7 @@ def visualize_boxes_and_labels_on_image_array(
     classes,
     scores,
     category_index,
+    distances,
     instance_masks=None,
     instance_boundaries=None,
     keypoints=None,
@@ -863,16 +864,24 @@ def visualize_boxes_and_labels_on_image_array(
             else:
               class_name = 'N/A'
             display_str = str(class_name)
-        if not skip_scores:
-          if not display_str:
-            display_str = '{}%'.format(int(100 * scores[i]))
-          else:
-            display_str = '{}: {}%'.format(display_str, int(100 * scores[i]))
+          if not skip_scores:
+            if not display_str:
+                display_str = '{}%, {}"'.format(int(100 * scores[i]), int(distances[i]))
+            else:
+                display_str = '{}: {}%, {}"'.format(display_str, int(100 * scores[i]), int(distances[i]))
+        # if not skip_scores:
+        #   display_str = '{}%, {}"'.format(int(100 * scores[i]), int(distances[i]))
+         
+        #   # if not display_str:
+        #   #   display_str = '{}%, {}"'.format(int(100 * scores[i]), int(distances[i]))
+        #   # else:
+        #   #   display_str = '{}: {}%'.format(display_str, int(100 * scores[i]))
         if not skip_track_ids and track_ids is not None:
           if not display_str:
             display_str = 'ID {}'.format(track_ids[i])
           else:
             display_str = '{}: ID {}'.format(display_str, track_ids[i])
+        print("display on box: ", display_str)
         box_to_display_str_map[box].append(display_str)
         if agnostic_mode:
           box_to_color_map[box] = 'DarkOrange'
@@ -894,6 +903,7 @@ def visualize_boxes_and_labels_on_image_array(
     if instance_boundaries is not None:
       draw_mask_on_image_array(
           image, box_to_instance_boundaries_map[box], color='red', alpha=1.0)
+    print("list of lists for labels: \n",box_to_display_str_map)
     draw_bounding_box_on_image_array(
         image,
         ymin,

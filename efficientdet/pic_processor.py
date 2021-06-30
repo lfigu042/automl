@@ -7,6 +7,8 @@ import inference
 #from inference import ServingDriver
 import pickle
 import numpy as np
+# for for camera stream
+import cv2
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
@@ -158,9 +160,12 @@ class det_model:
                 # pdb.set_trace()
                 # saving output
                 PIL.Image.fromarray(up_img).save('./data_pics/D4&5_processed/' + img_name)
-
-
-
+def give_directions(boxes, classes, scores, distances):
+    for i,d in enumerate(distances):
+        if d < 120:
+            print("object too close! watch out for the ", classes[i])
+        elif d >= 120:
+            print(classes[i], " detected, ", d , " inches away")
 def main():
     # processing data
     print("main running")
@@ -172,9 +177,31 @@ def main():
     detect = det_model()
 
 def main_2():
+    # Get webcam 
+    cap = cv2.VideoCapture("http://10.37.0.95:8081/video_feed")
     walker = smartWalker()
-    img = "./data_pics/testPics/1622212109.9949608.jpg"
-    boxes, classes, scores, distances = walker.process_img(img, visualize=True)
+    # Check if the webcam is opened correctly
+    if not cap.isOpened():
+        raise IOError("Cannot open webcam")
+
+    while True:
+        #capture frame
+        ret, frame  = cap.read()
+        if not ret:
+            break
+        
+        frame, boxes, classes, scores, distances = walker.process_img(frame, visualize = False)
+        # show frame by frame
+        cv2.imshow('frame',frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'): 
+            break
+        give_directions(boxes, classes, scores, distances)
+    cap.release()
+    cv2.destroyAllWindows()
+
+    # walker = smartWalker()
+    # img = "./data_pics/testPics/1622212109.9949608.jpg"
+    # boxes, classes, scores, distances = walker.process_img(img, visualize=True)
 
     #give_direction(boxes, classes, scores, distances)
 
@@ -230,8 +257,8 @@ class smartWalker:
             class_number = classes[ind]
             distances.append(self.dist_model.predict([[y_min, x_min, y_max , x_max, certainty, class_number]]))
 
-        if visualize:
-            processed_img = vis_utils.visualize_boxes_and_labels_on_image_array(
+        
+        processed_img = vis_utils.visualize_boxes_and_labels_on_image_array(
                                 img,
                                 boxes,
                                 classes,
@@ -242,7 +269,7 @@ class smartWalker:
                                 max_boxes_to_draw=max_boxes_to_draw,
                                 line_thickness=line_thickness,
                                 **kwargs)
-            
+        if visualize:     
             img_plot = plt.imshow(processed_img)
             plt.show()
 
@@ -258,7 +285,7 @@ class smartWalker:
                  scores_filtered.append(scores[i])
                  distances_filtered.append(distances[i])
 
-        return boxes_filtered, classes_filtered, scores_filtered, distances_filtered
+        return processed_img, boxes_filtered, classes_filtered, scores_filtered, distances_filtered
 
 
 
