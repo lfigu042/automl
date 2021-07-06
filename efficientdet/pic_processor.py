@@ -61,7 +61,7 @@ class Furkan:
       field_name = ["image_name", "image_id", "objectID", "class_number", "class_name",  "y_min", "x_min", "y_max", "x_max",  "accuracy", "distance_pred"]
 
       #adding to dictionary
-      print("LEN of SCORES >>>> " + str(len(self.scores)))
+    #   print("LEN of SCORES >>>> " + str(len(self.scores)))
       while i < len(self.scores):
         #   print(i)
           if self.scores[i] >= 0.6:
@@ -75,7 +75,7 @@ class Furkan:
 
             # random forest model to predict distance based on coordinates, certainty, and class num  
               distance_pred = self.model.predict([[y_min, x_min, y_max , x_max, certainty, class_number]]) #predictors = ['y_min', 'x_min', 'y_max', 'x_max','prediction', 'class_number']
-              print("DISTANCE PREDICTION >>>>>>>>>>", distance_pred)
+            #   print("DISTANCE PREDICTION >>>>>>>>>>", distance_pred)
               dictionary_entry = {
                                     "image_name": self.image_number, 
                                     "image_id": self.img_id, 
@@ -102,7 +102,7 @@ class Furkan:
           i += 1
 
       #print statements
-      print("\ndict with stuff... -> " + str(dict) + "\nObjection Detection Count: " + str(i))
+    #   print("\ndict with stuff... -> " + str(dict) + "\nObjection Detection Count: " + str(i))
       # pdb.set_trace()
 
       #transfering stats into CSV
@@ -116,8 +116,7 @@ class Furkan:
             thewriter = csv.writer(t)
             for key, value in dict.items():
                 thewriter.writerow([key, value])
-                print(str(key) + ",,,,,,, " + str(value))
-            print("writing dict to .csv = " + str(dict))
+            # print("writing dict to .csv = " + str(dict))
             t.close()
 
 class det_model:
@@ -152,7 +151,7 @@ class det_model:
                 raw_images.append(np.array(PIL.Image.open(f)))
             # driver = inference.ServingDriver('efficientdet-d5', './efficientdet-d5', min_score_thresh=0.6)
             for ind, ff in enumerate(files):
-                print("INDEX >>> " + str(ind))
+                # print("INDEX >>> " + str(ind))
                 img_name = os.path.basename(ff)
                 detections = sess.run('detections:0', {'image_arrays:0': [raw_images[ind]]})
                 up_img = inference.visualize_image_prediction(ind, img_name, raw_images[ind], detections[0], label_map=label_map, min_score_thresh=0.6)
@@ -160,12 +159,26 @@ class det_model:
                 # pdb.set_trace()
                 # saving output
                 PIL.Image.fromarray(up_img).save('./data_pics/D4&5_processed/' + img_name)
+
 def give_directions(boxes, classes, scores, distances):
-    for i,d in enumerate(distances):
-        if d < 120:
-            print("object too close! watch out for the ", classes[i])
-        elif d >= 120:
-            print(classes[i], " detected, ", d , " inches away")
+    # cd Desktop/REU_SUMMER21/automl/efficientdet
+    # python3 pic_processor.py
+        label_map = label_util.get_label_map('coco')
+        # print("label_map ", label_map)
+        for ind, [y_min, x_min, y_max, x_max] in enumerate(boxes):
+            obj_label = label_map.get(classes[ind])
+            print("object: ", obj_label)
+            if (float(distances[ind]) < 72):
+                # print(distances[ind])
+                if ((float(y_max) > 1.5 * float(x_min)) and (float(y_max) > (-1.5)* (float(x_max)) + 960)):
+                    print("a(n) "+ obj_label + " detected in front")               
+                elif (float(y_max) > 1.5 * float(x_max)):
+                    print("a(n) "+ obj_label + " detected in front on left")
+                elif (float(y_max) > (-1.5)* (float(x_min)) + 960):
+                    print("a(n) "+ obj_label + " detected in front on right")
+            else:
+                print("path clear ahead")
+
 def main():
     # processing data
     print("main running")
@@ -178,7 +191,7 @@ def main():
 
 def main_2():
     # Get webcam 
-    cap = cv2.VideoCapture("http://10.37.0.95:8081/video_feed")
+    cap = cv2.VideoCapture("http://192.168.4.1:8081/video_feed")
     walker = smartWalker()
     # Check if the webcam is opened correctly
     if not cap.isOpened():
