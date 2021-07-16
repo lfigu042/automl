@@ -22,6 +22,15 @@ from pathlib import Path
 from visualize import vis_utils
 from keras import label_util
 import matplotlib.pyplot as plt
+# raspberrypi commands
+from gpiozero import LED
+from gpiozero.pins.pigpio import PiGPIOFactory
+from time import sleep
+from threading import  Thread
+
+factory = PiGPIOFactory(host='192.168.4.1') #Raspberry Pi IP address
+right_heptic = LED(17, pin_factory=factory) 
+left_heptic = LED(27, pin_factory=factory)
 
 objectID = 0
 image_id = 0
@@ -38,7 +47,6 @@ class Furkan:
         self.labels = labels
         self.img = img
         self.model = self.load_model(pickle_path)
-
 
     # creating picStatsie
     def load_model(pickle_path):
@@ -101,12 +109,6 @@ class Furkan:
 
           i += 1
 
-      #print statements
-    #   print("\ndict with stuff... -> " + str(dict) + "\nObjection Detection Count: " + str(i))
-      # pdb.set_trace()
-
-      #transfering stats into CSV
-      #self.toCSV(dict)
       return dict
 
     # transfering dictionary key/value onto CSV file
@@ -160,24 +162,80 @@ class det_model:
                 # saving output
                 PIL.Image.fromarray(up_img).save('./data_pics/D4&5_processed/' + img_name)
 
+'''
+class walkerAlert:
+    def __init__(self):
+        right_t = threading.Thread(target=self.right_alert())
+        right_t.daemon = True
+        right_t.start()
+
+        left_t = threading.Thread(target=self.right_alert())
+        left_t.daemon = True
+        left_t.start()
+
+        rl_t = threading.Thread(target=self.right_alert())
+        rl_t.daemon = True
+        rl_t.start()
+'''
+def right_alert():
+    for i in range(5):
+        right_heptic.on()
+        sleep(0.3)
+        right_heptic.off()
+        sleep(0.2)
+
+def left_alert():
+    for i in range(5):
+        left_heptic.on()
+        sleep(0.3)
+        left_heptic.off()
+        sleep(0.2)
+
+def right_left_alert():
+    for i in range(5):
+        right_heptic.on()
+        left_heptic.on()
+        sleep(0.3)
+        right_heptic.off()
+        left_heptic.off()
+        sleep(0.2)
+
+label_map = label_util.get_label_map('coco')
+
+
 def give_directions(boxes, classes, scores, distances):
     # cd Desktop/REU_SUMMER21/automl/efficientdet
     # python3 pic_processor.py
-        label_map = label_util.get_label_map('coco')
+        # label_map = label_util.get_label_map('coco')
         # print("label_map ", label_map)
+        print("\n\n******new image processed*****")
         for ind, [y_min, x_min, y_max, x_max] in enumerate(boxes):
             obj_label = label_map.get(classes[ind])
             print("object: ", obj_label)
             if (float(distances[ind]) < 72):
                 # print(distances[ind])
                 if ((float(y_max) > 1.5 * float(x_min)) and (float(y_max) > (-1.5)* (float(x_max)) + 960)):
-                    print("a(n) "+ obj_label + " detected in front")               
+                    print("a(n) "+ obj_label + " detected in front")
+                    rlAlert = Thread(target=right_left_alert) 
+                    rlAlert.start()              
                 elif (float(y_max) > 1.5 * float(x_max)):
                     print("a(n) "+ obj_label + " detected in front on left")
+                    leftAlert = Thread(target=left_alert)
+                    leftAlert.start()
                 elif (float(y_max) > (-1.5)* (float(x_min)) + 960):
                     print("a(n) "+ obj_label + " detected in front on right")
+                    rightAlert = Thread(target=right_alert)
+                    rightAlert.start()
             else:
                 print("path clear ahead")
+
+def cap_retrieve(cap):
+    for i in range(4):
+        isGrab = cap.grab()
+
+    return cap.retrieve()
+
+    
 
 def main():
     # processing data
@@ -192,31 +250,44 @@ def main():
 def main_2():
     # Get webcam 
     cap = cv2.VideoCapture("http://192.168.4.1:8081/video_feed")
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    # cap.set(cv2.CAP_PROP_FPS, 1)
+
     walker = smartWalker()
     # Check if the webcam is opened correctly
     if not cap.isOpened():
         raise IOError("Cannot open webcam")
 
+    count = 1
     while True:
-        #capture frame
-        ret, frame  = cap.read()
-        if not ret:
+        
+        try:
+            #capture frame
+            print(count)
+            count +=1
+            ret, frame  = cap_retrieve(cap)
+            if not ret:
+                break
+            # cap.release()
+            # cap = cv2.VideoCapture("http://192.168.4.1:8081/video_feed")
+            # cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+            frame, boxes, classes, scores, distances = walker.process_img(frame, visualize = False)
+            # show frame by frame
+
+            cv2.imshow('frame', frame)
+            key = cv2.waitKey(10)
+            if key == 27: # exit on ESC
+                break
+            # boxes, classes, scores, distances = [[0,0,1,0],[0,0,1,0],[0,0,1,0],[0,0,1,0]], [1,1,1,1], [0,0,0,0], [0,0,0,0]
+            give_directions(boxes, classes, scores, distances)
+
+        except KeyboardInterrupt:
+            print("Bye\n\n")
+            cap.release()
+            cv2.destroyAllWindows()
             break
         
-        frame, boxes, classes, scores, distances = walker.process_img(frame, visualize = False)
-        # show frame by frame
-        cv2.imshow('frame',frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'): 
-            break
-        give_directions(boxes, classes, scores, distances)
-    cap.release()
-    cv2.destroyAllWindows()
-
-    # walker = smartWalker()
-    # img = "./data_pics/testPics/1622212109.9949608.jpg"
-    # boxes, classes, scores, distances = walker.process_img(img, visualize=True)
-
-    #give_direction(boxes, classes, scores, distances)
 
 
 class smartWalker:
@@ -301,22 +372,7 @@ class smartWalker:
         return processed_img, boxes_filtered, classes_filtered, scores_filtered, distances_filtered
 
 
-
-
 if __name__ == "__main__":
 
     main_2()
     #main()
-
-
-
-# image: a image with shape [H, W, C].
-#     boxes: a box prediction with shape [N, 4] ordered [ymin, xmin, ymax, xmax].
-#     classes: a class prediction with shape [N].
-#     scores: A list of float value with shape [N].
-#     label_map: a dictionary from class id to name.
-#     min_score_thresh: minimal score for showing. If claass probability is below
-#       this threshold, then the object will not show up.
-#     max_boxes_to_draw: maximum bounding box to draw.
-#     line_thickness: how thick is the bounding box line.
-#     **kwargs: extra parameters.
